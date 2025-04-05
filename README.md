@@ -16,7 +16,7 @@ The SHL Assessment Recommender helps HR professionals and recruiters find the mo
 
 ## Demo 🎥
 
-A live demo is available at: [http://localhost:8503](http://localhost:8503)
+A live demo is available at: [http://localhost:8503](https://shl-assessment-recommendation-system.streamlit.app/)
 
 ## API Usage 📡
 
