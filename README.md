@@ -6,6 +6,12 @@ A tool for recommending SHL assessments based on job descriptions using semantic
 
 The SHL Assessment Recommender helps HR professionals and recruiters find the most appropriate SHL assessments for their hiring needs. By analyzing job descriptions or specific queries, the system recommends relevant assessments from SHL's catalog, providing explanations for why each assessment is suitable.
 
+## 🧠 System Architecture
+
+The following diagram illustrates the architecture of the SHL Assessment Recommender system:
+
+![System Architecture](diagram.png)
+
 ## Features 🌟
 
 - **Semantic Search**: Uses AI embeddings to understand the meaning behind job descriptions
