@@ -80,9 +80,10 @@ GET /api/recommend?query=your+query+here
 - `shl_assessments.csv`: Cached assessment data
 - `approach_document.md`: Technical approach documentation
 
+---
+
 ## 👤 Author
 
-NAGA VENKATA SRI SAILAJA PATNEEDI\
 📧 Email: [namanjain34710@gmail.com](mailto\:namanjain34710@gmail.com)
 
 LinkedIn: [Naman Jain](https://www.linkedin.com/in/naman-jain-226135201/)
