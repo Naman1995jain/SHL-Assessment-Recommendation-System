@@ -84,6 +84,6 @@ GET /api/recommend?query=your+query+here
 
 ## 👤 Author
 
-📧 Email: [namanjain34710@gmail.com](mailto\:namanjain34710@gmail.com)
+Email: [namanjain34710@gmail.com](mailto\:namanjain34710@gmail.com)
 
 LinkedIn: [Naman Jain](https://www.linkedin.com/in/naman-jain-226135201/)
