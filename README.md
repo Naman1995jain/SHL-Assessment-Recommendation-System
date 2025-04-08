@@ -46,7 +46,6 @@ GET /api/recommend?query=your+query+here
             "duration": "Duration info",
             "relevance": "Explanation of relevance"
         },
-        ...
     ]
 }
 ```
