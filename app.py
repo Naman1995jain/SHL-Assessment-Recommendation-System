@@ -34,6 +34,52 @@ def load_or_scrape_data():
     
     return df
 
+# Set up API endpoint
+API_ENDPOINT = "http://localhost:8000"
+
+# Function to call the FastAPI backend
+def get_recommendations_from_api(query, max_results=10):
+    """Get assessment recommendations from the FastAPI backend"""
+    try:
+        response = requests.post(
+            f"{API_ENDPOINT}/recommend",
+            json={"query": query, "max_results": max_results}
+        )
+        
+        if response.status_code == 200:
+            return response.json()["recommended_assessments"]
+        else:
+            st.error(f"API Error: {response.status_code} - {response.text}")
+            return []
+    except Exception as e:
+        st.error(f"Error connecting to API: {e}")
+        return []
+
+def get_assessment_detail_from_api(url):
+    """Get details for a specific assessment from the FastAPI backend"""
+    try:
+        response = requests.post(
+            f"{API_ENDPOINT}/assessment",
+            json={"url": url}
+        )
+        
+        if response.status_code == 200:
+            return response.json()["assessment"]
+        else:
+            st.error(f"API Error: {response.status_code} - {response.text}")
+            return None
+    except Exception as e:
+        st.error(f"Error connecting to API: {e}")
+        return None
+
+def check_api_health():
+    """Check if the API is available"""
+    try:
+        response = requests.get(f"{API_ENDPOINT}/health")
+        return response.status_code == 200
+    except:
+        return False
+
 def scrape_job_description(url):
     """Scrape job description from a provided URL"""
     try:
@@ -239,6 +285,14 @@ def main():
     You can include duration requirements like "assessments under 30 minutes" in your query.
     """)
     
+    # Check API health
+    api_available = check_api_health()
+    if not api_available:
+        st.error("⚠️ API service is not available. Please make sure the FastAPI server is running.")
+        st.stop()
+    else:
+        st.success("✅ Connected to API service")
+    
     tab1, tab2 = st.tabs(["Enter Query", "Upload Job Description URL"])
     
     with tab1:
@@ -256,58 +310,33 @@ def main():
         )
         url_button = st.button("Fetch & Analyze", key="url_button")
     
-    # Load or scrape the assessment data
-    df = load_or_scrape_data()
-    
-    # Cache for optimization
-    if 'embedding_cache' not in st.session_state:
-        st.session_state.embedding_cache = {}
-    
     if search_button and query:
         with st.spinner("Finding the best assessments for you..."):
-            results = get_recommendations(query, df)
+            recommendations = get_recommendations_from_api(query)
             
-            if not results.empty:
-                results = enhance_recommendations(results, query)
-                
+            if recommendations:
                 # Display prettified results
                 st.subheader("📊 Recommended Assessments")
                 
-                # Create a table with the most important columns
-                display_df = results[['name', 'test_type', 'remote_testing', 'adaptive_irt', 'relevance']].copy()
-                display_df = display_df.rename(columns={
-                    'name': 'Assessment Name',
-                    'test_type': 'Test Type',
-                    'remote_testing': 'Remote Testing',
-                    'adaptive_irt': 'Adaptive/IRT',
-                    'relevance': 'Relevance'
-                })
-                
                 # Display results in a more visual way
-                for i, (_, row) in enumerate(display_df.iterrows()):
+                for i, assessment in enumerate(recommendations):
                     with st.container():
                         col1, col2 = st.columns([3, 1])
                         with col1:
-                            st.markdown(f"### {i+1}. [{row['Assessment Name']}]({results.iloc[i]['url']})")
-                            st.markdown(f"**Test Type:** {row['Test Type']}")
-                            st.markdown(f"**Why it's relevant:** {row['Relevance']}")
+                            st.markdown(f"### {i+1}. [{assessment['description'].split('.')[0]}]({assessment['url']})")
+                            st.markdown(f"**Test Type:** {', '.join(assessment['test_type'])}")
+                            st.markdown(f"**Why it's relevant:** {'.'.join(assessment['description'].split('.')[1:])}")
                         with col2:
-                            st.markdown(f"**Remote Testing:** {row['Remote Testing']}")
-                            st.markdown(f"**Adaptive/IRT:** {row['Adaptive/IRT']}")
-                            if 'duration' in results.columns:
-                                st.markdown(f"**Duration:** {results.iloc[i]['duration']}")
+                            st.markdown(f"**Remote Testing:** {assessment['remote_support']}")
+                            st.markdown(f"**Adaptive/IRT:** {assessment['adaptive_support']}")
+                            st.markdown(f"**Duration:** {assessment['duration']} minutes")
                         st.markdown("---")
-                
-                # Also provide a full table view
-                with st.expander("View as table"):
-                    st.table(display_df)
                 
                 # Add a visualization
                 st.subheader("Visualization of Test Types")
                 test_types = []
-                for types in results['test_type']:
-                    types_list = types.split(', ')
-                    test_types.extend(types_list)
+                for assessment in recommendations:
+                    test_types.extend(assessment['test_type'])
                 
                 type_counts = pd.Series(test_types).value_counts().reset_index()
                 type_counts.columns = ['Test Type', 'Count']
@@ -332,46 +361,31 @@ def main():
                 
                 # Auto-search with the extracted job description
                 with st.spinner("Finding the best assessments for you..."):
-                    results = get_recommendations(job_description, df)
+                    recommendations = get_recommendations_from_api(job_description)
                     
-                    if not results.empty:
-                        results = enhance_recommendations(results, job_description)
-                        
-                        # Display prettified results (same as above)
+                    if recommendations:
+                        # Display prettified results
                         st.subheader("📊 Recommended Assessments")
                         
-                        display_df = results[['name', 'test_type', 'remote_testing', 'adaptive_irt', 'relevance']].copy()
-                        display_df = display_df.rename(columns={
-                            'name': 'Assessment Name',
-                            'test_type': 'Test Type',
-                            'remote_testing': 'Remote Testing',
-                            'adaptive_irt': 'Adaptive/IRT',
-                            'relevance': 'Relevance'
-                        })
-                        
-                        for i, (_, row) in enumerate(display_df.iterrows()):
+                        # Display results in a more visual way
+                        for i, assessment in enumerate(recommendations):
                             with st.container():
                                 col1, col2 = st.columns([3, 1])
                                 with col1:
-                                    st.markdown(f"### {i+1}. [{row['Assessment Name']}]({results.iloc[i]['url']})")
-                                    st.markdown(f"**Test Type:** {row['Test Type']}")
-                                    st.markdown(f"**Why it's relevant:** {row['Relevance']}")
+                                    st.markdown(f"### {i+1}. [{assessment['description'].split('.')[0]}]({assessment['url']})")
+                                    st.markdown(f"**Test Type:** {', '.join(assessment['test_type'])}")
+                                    st.markdown(f"**Why it's relevant:** {'.'.join(assessment['description'].split('.')[1:])}")
                                 with col2:
-                                    st.markdown(f"**Remote Testing:** {row['Remote Testing']}")
-                                    st.markdown(f"**Adaptive/IRT:** {row['Adaptive/IRT']}")
-                                    if 'duration' in results.columns:
-                                        st.markdown(f"**Duration:** {results.iloc[i]['duration']}")
+                                    st.markdown(f"**Remote Testing:** {assessment['remote_support']}")
+                                    st.markdown(f"**Adaptive/IRT:** {assessment['adaptive_support']}")
+                                    st.markdown(f"**Duration:** {assessment['duration']} minutes")
                                 st.markdown("---")
-                        
-                        with st.expander("View as table"):
-                            st.table(display_df)
                         
                         # Add visualization
                         st.subheader("Visualization of Test Types")
                         test_types = []
-                        for types in results['test_type']:
-                            types_list = types.split(', ')
-                            test_types.extend(types_list)
+                        for assessment in recommendations:
+                            test_types.extend(assessment['test_type'])
                         
                         type_counts = pd.Series(test_types).value_counts().reset_index()
                         type_counts.columns = ['Test Type', 'Count']
@@ -392,39 +406,46 @@ def main():
     # Show API instructions
     with st.expander("API Usage Information"):
         st.markdown("""
-        ### API Endpoint
+        ### API Endpoints
         
-        You can access the API at `/api/recommend` with a GET request:
+        The SHL Assessment Recommender API provides the following endpoints:
         
+        #### Recommend Assessments
         ```
-        GET /api/recommend?query=your+query+here
+        POST /recommend
         ```
         
-        ### Response Format
-        
-        The API returns a JSON object with recommended assessments:
-        
+        Request body:
         ```json
         {
-            "recommendations": [
-                {
-                    "name": "Assessment Name",
-                    "url": "https://www.shl.com/path/to/assessment",
-                    "test_type": "Test Type",
-                    "remote_testing": "Yes/No",
-                    "adaptive_irt": "Yes/No",
-                    "duration": "Duration info",
-                    "relevance": "Explanation of relevance"
-                },
-                ...
-            ]
+            "query": "your query or job description",
+            "max_results": 10
         }
         ```
+        
+        #### Get Assessment Details
+        ```
+        POST /assessment
+        ```
+        
+        Request body:
+        ```json
+        {
+            "url": "https://www.shl.com/path/to/assessment"
+        }
+        ```
+        
+        #### Health Check
+        ```
+        GET /health
+        ```
+        
+        For full API documentation, visit: [API Docs](/docs)
         """)
 
     # Add footer
     st.markdown("---")
-    st.markdown("SHL Assessment Recommender | Built with Streamlit and OpenRouter (Mistral Small 3.1)")
+    st.markdown("SHL Assessment Recommender | Built with Streamlit and FastAPI")
 
 if __name__ == "__main__":
     main()
