@@ -9,6 +9,29 @@ import plotly.express as px
 from scrape_shl2 import scrape_shl_catalog, save_to_csv
 import time
 from openrouter_api import generate_content, create_embeddings
+import subprocess
+import sys
+
+# Set page config at the very beginning
+st.set_page_config(
+    page_title="SHL Assessment Recommender",
+    page_icon="🧪",
+    layout="wide"
+)
+
+def start_api_server():
+    """Start the FastAPI server in a separate process"""
+    try:
+        # Use Python executable to run api.py
+        api_process = subprocess.Popen([sys.executable, "api.py"], 
+                                     stdout=subprocess.PIPE,
+                                     stderr=subprocess.PIPE)
+        # Wait a few seconds for the server to start
+        time.sleep(3)
+        return api_process
+    except Exception as e:
+        st.error(f"Failed to start API server: {e}")
+        return None
 
 # Load environment variables
 load_dotenv()
@@ -93,7 +116,7 @@ def scrape_job_description(url):
             job_description = ""
             # Try to find main content
             main_content = soup.find("div", class_=["job-description", "description"])
-            if main_content:
+            if (main_content):
                 job_description = main_content.text.strip()
             else:
                 # Fallback to look for paragraphs
@@ -273,11 +296,17 @@ def enhance_recommendations(results, query):
     return results
 
 def main():
-    st.set_page_config(
-        page_title="SHL Assessment Recommender",
-        page_icon="🧪",
-        layout="wide"
-    )
+    # Start the API server if it's not already running
+    if not check_api_health():
+        st.info("Starting API server...")
+        api_process = start_api_server()
+        if api_process:
+            time.sleep(2)  # Give the server a moment to start
+            if check_api_health():
+                st.success("✅ API server started successfully")
+            else:
+                st.error("❌ Failed to start API server")
+                st.stop()
     
     st.title("🧪 SHL Assessment Recommender")
     st.markdown("""
